@@ -14,6 +14,10 @@ Parameters:
     MaxLength: 100
     ConstraintDescription: You must enter the EKS cluster name
 
+  JWTSECRET:
+    Type: String
+    Description: Secret key for JWT authentication
+
   GitSourceRepo:
     Type: String
     Description: GitHub source repository - must contain a Dockerfile and buildspec.yml in the base
@@ -40,7 +44,7 @@ Parameters:
 
   GitHubUser:
     Type: String
-    Default: SudKul
+    Default: drdrbull
     Description: GitHub username or organization
     MinLength: 3
     MaxLength: 100
@@ -119,7 +123,7 @@ Resources:
         ZipFile: |
           import json
           import boto3
-          from botocore.vendored import requests
+          import urllib3
           def handler(event, context):
             response = {
               'Status': 'SUCCESS',
@@ -131,6 +135,7 @@ Resources:
               'Data': {"Message": "Resource creation successful!"},
             }
 
+            http = urllib3.PoolManager()
             client = boto3.client('iam')
             try:
               if event['RequestType'] == 'Create':
@@ -156,12 +161,12 @@ Resources:
 
             response_body = json.dumps(response)
             headers = {'content-type': '', "content-length": str(len(response_body)) }
-            put_response = requests.put(event['ResponseURL'], headers=headers, data=response_body)
-            return response
+            response = http.request('PUT', event['ResponseURL'], body=response_body, headers=headers)
+            return put_response
 
       Handler: index.handler
       Role: !GetAtt CustomResourceLambdaExecutionRole.Arn
-      Runtime: python3.7
+      Runtime: python3.12
       Timeout: 300
 
   CustomResourceLambdaExecutionRole:
